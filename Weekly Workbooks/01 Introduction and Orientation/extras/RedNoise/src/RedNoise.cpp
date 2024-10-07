@@ -24,6 +24,7 @@ void draw(DrawingWindow &window, std::vector<float> &grey) {
 	}
 }
 
+
 void handleEvent(SDL_Event event, DrawingWindow &window) {
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) std::cout << "LEFT" << std::endl;
@@ -64,6 +65,21 @@ std::vector<glm::vec3> interpolateThreeElementValues(glm::vec3 from, glm::vec3 t
 	return listOfVec3;
 }
 
+void draw2(DrawingWindow &window, std::vector<glm::vec3> leftside, std::vector<glm::vec3> rightside){
+	window.clearPixels();
+	std::vector<glm::vec3> pixelRow;
+	for (size_t y = 0; y < window.height; y++) {
+		//the colour thing needs to be set to interpolation of the 
+		//uint32_t colour = (255 << 24) + (int(grey[x]) << 16) + (int(grey[x]) << 8) + int(grey[x]);
+		//window.setPixelColour(x, y, colour);
+		pixelRow = interpolateThreeElementValues((leftside[y]), (rightside[y]), window.width);
+		for (size_t x = 0; x<window.width;x++){
+			uint32_t colour = (255 << 24) + (int(pixelRow[x].x) << 16) + (int(pixelRow[x].y) << 8) + int(pixelRow[x].z);
+			window.setPixelColour(x, y, colour);
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
 	//std::vector<float> result;
 	//result = interpolateSingleFloats(2.2, 8.5, 7);
@@ -71,10 +87,8 @@ int main(int argc, char *argv[]) {
 	//std::cout << std::endl;
 
 	//grey = interpolateSingleFloats(256, 0, window.width)
-	//task 3
-	std::vector<float> grey = interpolateSingleFloats(256, 0, window.width);
 
-
+	
 	glm::vec3 from(1.0, 4.0, 9.2);
 	glm::vec3 to(4.0, 1.0, 9.8);
 	std::vector<glm::vec3> result;
@@ -89,10 +103,28 @@ int main(int argc, char *argv[]) {
 	//task 3
 	//std::vector<float> grey = interpolateSingleFloats(256, 0, window.width);
 
+	//Task 5
+	glm::vec3 topLeft(255, 0, 0);        // red 
+	glm::vec3 topRight(0, 0, 255);       // blue 
+	glm::vec3 bottomRight(0, 255, 0);    // green 
+	glm::vec3 bottomLeft(255, 255, 0);   // yellow
+
+	std::vector<glm::vec3> first;
+	first = interpolateThreeElementValues((topLeft), (bottomLeft), window.height);
+
+	std::vector<glm::vec3> last;
+	last = interpolateThreeElementValues((topRight), (bottomRight), window.height);
+
+	//need to create a loop to go through each row, maybe put that in a draw function.
+	// can create my own function of a 2d array and then put it in the draw function maybe cause the draw function is constantly refreshing
+	//std::vector<glm::vec3> firstToLast;
+	//firstToLast = interpolateThreeElementValues((first), (last), window.width);
+
 	while(true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window);
-		draw(window, grey);
+		//draw(window, grey);
+		draw2(window, first, last);
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
 	}
