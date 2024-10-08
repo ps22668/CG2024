@@ -3,7 +3,10 @@
 #include <Utils.h>
 #include <fstream>
 #include <vector>
-#include <glm/glm.hpp>
+#include <glm/glm.hpp>//Week 2
+#include <CanvasPoint.h>//Week 3
+#include <Colour.h>
+#include <algorithm>
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -78,6 +81,28 @@ void draw2(DrawingWindow &window, std::vector<glm::vec3> leftside, std::vector<g
 	}
 }
 
+uint32_t colourToUint32(const Colour &colour) {
+    return (static_cast<uint32_t>(colour.red) << 16) | 
+           (static_cast<uint32_t>(colour.green) << 8) | 
+           (static_cast<uint32_t>(colour.blue));
+}
+
+void drawLine(DrawingWindow &window, glm::vec2 from, glm::vec2 to){
+	//window.clearPixels();
+	Colour white(255, 255, 255);
+	float diffX = to.x - from.x;
+	float diffY = to.y - from.y;
+	float numberOfSteps = std::max(abs(diffX), abs(diffY));
+	float xStepSize = diffX/numberOfSteps;
+	float yStepSize = diffY/numberOfSteps;
+
+	for(float i = 0.0; i <=numberOfSteps; i++){
+		float x = from.x + (xStepSize*i);
+		float y = from.y + (yStepSize*i);
+		window.setPixelColour(round(x), round(y), colourToUint32(white));
+	}
+}
+
 int main(int argc, char *argv[]) {
 	//std::vector<float> result;
 	//result = interpolateSingleFloats(2.2, 8.5, 7);
@@ -99,16 +124,24 @@ int main(int argc, char *argv[]) {
 	//std::vector<float> grey = interpolateSingleFloats(256, 0, window.width);
 
 	//Task 5
-	glm::vec3 topLeft(255, 0, 0);        // red 
-	glm::vec3 topRight(0, 0, 255);       // blue 
-	glm::vec3 bottomRight(0, 255, 0);    // green 
-	glm::vec3 bottomLeft(255, 255, 0);   // yellow
+	//glm::vec3 topLeft(255, 0, 0);        // red 
+	//glm::vec3 topRight(0, 0, 255);       // blue 
+	//glm::vec3 bottomRight(0, 255, 0);    // green 
+	//glm::vec3 bottomLeft(255, 255, 0);   // yellow
 
-	std::vector<glm::vec3> first;
-	first = interpolateThreeElementValues((topLeft), (bottomLeft), window.height);
+	//std::vector<glm::vec3> first;
+	//first = interpolateThreeElementValues((topLeft), (bottomLeft), window.height);
 
-	std::vector<glm::vec3> last;
-	last = interpolateThreeElementValues((topRight), (bottomRight), window.height);
+	//std::vector<glm::vec3> last;
+	//last = interpolateThreeElementValues((topRight), (bottomRight), window.height);
+
+	glm::vec2 topLeft(0, 0);
+	glm::vec2 topRight(window.width, 0);
+	glm::vec2 topMiddle(window.width/2, 0);
+	glm::vec2 bottomMiddle(window.width/2, window.height);
+	glm::vec2 middle(window.width/2, window.height/2);
+	glm::vec2 firstThird(round(window.width/3), window.height/2);
+	glm::vec2 secondThird((2*round(window.width/3)), window.height/2);
 
 	while(true) {
 		// We MUST poll for events - otherwise the window will freeze !
@@ -118,7 +151,13 @@ int main(int argc, char *argv[]) {
 		//draw(window, grey);
 
 		//task 5
-		draw2(window, first, last);
+		//draw2(window, first, last);
+		window.clearPixels();
+		drawLine(window, topLeft, middle);
+		drawLine(window, topRight, middle);
+		drawLine(window, topMiddle, bottomMiddle);
+		drawLine(window, firstThird, secondThird);
+
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
 	}
