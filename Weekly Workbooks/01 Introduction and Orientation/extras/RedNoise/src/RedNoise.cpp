@@ -7,6 +7,8 @@
 #include <CanvasPoint.h>//Week 3
 #include <Colour.h>
 #include <algorithm>
+#include <CanvasTriangle.h>
+#include <random>
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -17,26 +19,9 @@ void draw(DrawingWindow &window, std::vector<float> &grey) {
 	window.clearPixels();
 	for (size_t y = 0; y < window.height; y++) {
 		for (size_t x = 0; x < window.width; x++) {
-			//float red = rand() % 256;
-			//float green = 0.0;
-			//float blue = 0.0;
 			uint32_t colour = (255 << 24) + (int(grey[x]) << 16) + (int(grey[x]) << 8) + int(grey[x]);//this gets grey scale in task 3
-			//uint32_t colour = (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
 			window.setPixelColour(x, y, colour);
 		}
-	}
-}
-
-
-void handleEvent(SDL_Event event, DrawingWindow &window) {
-	if (event.type == SDL_KEYDOWN) {
-		if (event.key.keysym.sym == SDLK_LEFT) std::cout << "LEFT" << std::endl;
-		else if (event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
-		else if (event.key.keysym.sym == SDLK_UP) std::cout << "UP" << std::endl;
-		else if (event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
-	} else if (event.type == SDL_MOUSEBUTTONDOWN) {
-		window.savePPM("output.ppm");
-		window.saveBMP("output.bmp");
 	}
 }
 
@@ -87,9 +72,18 @@ uint32_t colourToUint32(const Colour &colour) {
            (static_cast<uint32_t>(colour.blue));
 }
 
-void drawLine(DrawingWindow &window, glm::vec2 from, glm::vec2 to){
-	//window.clearPixels();
-	Colour white(255, 255, 255);
+Colour randColourGen(){
+	std::random_device randC;
+	std::mt19937 gen(randC());
+	std::uniform_int_distribution<> distRGB(0, 255);
+	int random_R = distRGB(gen);
+	int random_G = distRGB(gen);
+	int random_B = distRGB(gen);
+	Colour randColour =  Colour(random_R, random_G, random_B);
+	return randColour;
+}
+
+void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour){
 	float diffX = to.x - from.x;
 	float diffY = to.y - from.y;
 	float numberOfSteps = std::max(abs(diffX), abs(diffY));
@@ -99,66 +93,59 @@ void drawLine(DrawingWindow &window, glm::vec2 from, glm::vec2 to){
 	for(float i = 0.0; i <=numberOfSteps; i++){
 		float x = from.x + (xStepSize*i);
 		float y = from.y + (yStepSize*i);
-		window.setPixelColour(round(x), round(y), colourToUint32(white));
+		window.setPixelColour(round(x), round(y), colourToUint32(colour));
+	}
+}
+
+void drawTriangle(DrawingWindow &window, CanvasTriangle t, Colour colour){
+	CanvasPoint a = t[0];
+	CanvasPoint b = t[1];
+	CanvasPoint c = t[2];
+	drawLine(window, a, b, colour);
+	drawLine(window, b, c, colour);
+	drawLine(window, a, c, colour);
+}
+
+CanvasTriangle randTriangle(DrawingWindow &window){
+	std::random_device rand;
+	std::mt19937 gen(rand());
+	std::uniform_int_distribution<> distX(0, window.width-1);
+	std::uniform_int_distribution<> distY(0, window.height-1);
+	CanvasTriangle tri;
+
+	for (int i = 0; i < 3; i++) {
+		int random_X = distX(gen);
+		int random_Y = distY(gen);
+		tri[i] = CanvasPoint(random_X, random_Y);
+	}
+	return tri;
+}
+
+void handleEvent(SDL_Event event, DrawingWindow &window) {
+	if (event.type == SDL_KEYDOWN) {
+		if (event.key.keysym.sym == SDLK_LEFT) std::cout << "LEFT" << std::endl;
+		else if (event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
+		else if (event.key.keysym.sym == SDLK_UP) std::cout << "UP" << std::endl;
+		else if (event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
+		else if(event.key.keysym.sym == SDLK_u){
+			CanvasTriangle tri = randTriangle(window);
+			Colour randColour = randColourGen();
+			drawTriangle(window, tri, randColour);
+		}
+	} else if (event.type == SDL_MOUSEBUTTONDOWN) {
+		window.savePPM("output.ppm");
+		window.saveBMP("output.bmp");
 	}
 }
 
 int main(int argc, char *argv[]) {
-	//std::vector<float> result;
-	//result = interpolateSingleFloats(2.2, 8.5, 7);
-	//for(size_t i=0; i<result.size(); i++) std::cout << result[i] << " ";
-	//std::cout << std::endl;
-	
-	glm::vec3 from(1.0, 4.0, 9.2);
-	glm::vec3 to(4.0, 1.0, 9.8);
-	std::vector<glm::vec3> result;
-	result = interpolateThreeElementValues((from), (to), 4);
-	for (const auto& vec : result) {
-        std::cout << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")" << std::endl;
-    }
-	
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
-
-	//task 3
-	//std::vector<float> grey = interpolateSingleFloats(256, 0, window.width);
-
-	//Task 5
-	//glm::vec3 topLeft(255, 0, 0);        // red 
-	//glm::vec3 topRight(0, 0, 255);       // blue 
-	//glm::vec3 bottomRight(0, 255, 0);    // green 
-	//glm::vec3 bottomLeft(255, 255, 0);   // yellow
-
-	//std::vector<glm::vec3> first;
-	//first = interpolateThreeElementValues((topLeft), (bottomLeft), window.height);
-
-	//std::vector<glm::vec3> last;
-	//last = interpolateThreeElementValues((topRight), (bottomRight), window.height);
-
-	glm::vec2 topLeft(0, 0);
-	glm::vec2 topRight(window.width, 0);
-	glm::vec2 topMiddle(window.width/2, 0);
-	glm::vec2 bottomMiddle(window.width/2, window.height);
-	glm::vec2 middle(window.width/2, window.height/2);
-	glm::vec2 firstThird(round(window.width/3), window.height/2);
-	glm::vec2 secondThird((2*round(window.width/3)), window.height/2);
 
 	while(true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window);
-		
-		//task 3
-		//draw(window, grey);
-
-		//task 5
-		//draw2(window, first, last);
-		window.clearPixels();
-		drawLine(window, topLeft, middle);
-		drawLine(window, topRight, middle);
-		drawLine(window, topMiddle, bottomMiddle);
-		drawLine(window, firstThird, secondThird);
-
-		// Need to render the frame at the end, or nothing actually gets shown on the screen !
+	
 		window.renderFrame();
 	}
 }
