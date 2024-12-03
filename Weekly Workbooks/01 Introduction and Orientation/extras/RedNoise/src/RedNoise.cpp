@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <CanvasTriangle.h>
 #include <random>
+#include <TexturePoint.h>
+#include <TextureMap.h>
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -109,7 +111,7 @@ void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour co
 	}
 }
 
-std::vector<CanvasPoint> drawLineArray(CanvasPoint from, CanvasPoint to, Colour colour)
+std::vector<CanvasPoint> drawLineArray(CanvasPoint from, CanvasPoint to)
 {
 	std::vector<CanvasPoint> pointsToDraw;
 	float diffX = to.x - from.x;
@@ -172,7 +174,7 @@ void drawFilled(DrawingWindow &window, CanvasTriangle t, Colour colour)
 
 	//find extra point
 	CanvasPoint extra;
-	std::vector<CanvasPoint> a2c = drawLineArray(a, c, colour);
+	std::vector<CanvasPoint> a2c = drawLineArray(a, c);
 	for (const auto point : a2c) {
         if (point.y == b.y) {
             extra = point;
@@ -265,16 +267,77 @@ void handleEvent(SDL_Event event, DrawingWindow &window)
 	}
 }
 
+CanvasTriangle sortingVerticesByY(CanvasTriangle t){
+	for (int i = 0; i < 2; i++)
+	{
+		for (int j = 0; j < 2 - i; j++)
+		{
+			if (CanvasPoint(t[j]).y > CanvasPoint(t[j + 1]).y)
+			{
+				CanvasPoint temp = t[j];
+				t[j] = t[j + 1];
+				t[j+1] = temp;
+			}
+		}
+	}
+	CanvasPoint a = t[0]; // lower y near the top
+	CanvasPoint b = t[1];
+	CanvasPoint c = t[2]; // highest y at the bottom
+}
+
+void drawTextureTriangle(DrawingWindow &window, CanvasTriangle t, std::vector<TexturePoint> texTri, TextureMap pic){
+	//turn the texture map into a texture grid
+	std::vector<std::vector<uint32_t>> textureGrid;
+	textureGrid.resize(pic.height);
+	for (size_t i =0; i < pic.pixels.size(); i++){
+		for(size_t y = 0; y < pic.height; y++){
+			textureGrid[y].resize(pic.width);
+				for(size_t x = 0; x < pic.width; x++){
+					textureGrid[y][x] = pic.pixels[i];
+				}
+		}
+	}
+
+	//Produce an interpolation list of all canvas points lines (a, b, c, extra)
+	CanvasTriangle sortedT = sortingVerticesByY(t);
+	CanvasPoint a = sortedT[0]; // lower y near the top
+	CanvasPoint b = sortedT[1];
+	CanvasPoint c = sortedT[2]; // highest y at the bottom
+
+	//Interpolate the points between the lines to the texture points
+
+	//Draw the texture points in triangle
+}
+
+
+
+
 int main(int argc, char *argv[])
 {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
+	CanvasPoint v1 = CanvasPoint(160, 10);
+	CanvasPoint v2 = CanvasPoint(300, 230);
+	CanvasPoint v3 = CanvasPoint(10, 150);
+	CanvasTriangle t = CanvasTriangle(v1, v2, v3);
+
+	TexturePoint tx1 = TexturePoint(195, 5);
+	TexturePoint tx2 = TexturePoint(395, 380);
+	TexturePoint tx3 = TexturePoint(65, 330);
+	std::vector<TexturePoint> textureTriangle = {tx1, tx2, tx3};
+
+	TextureMap ppm ("texture.ppm");
+
 
 	while (true)
 	{
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event))
 			handleEvent(event, window);
+
+		window.clearPixels();
+
+		drawTextureTriangle(window, t, textureTriangle, ppm);
 
 		window.renderFrame();
 	}
