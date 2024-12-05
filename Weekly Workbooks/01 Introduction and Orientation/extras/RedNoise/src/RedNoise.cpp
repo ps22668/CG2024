@@ -13,26 +13,10 @@
 #include <sstream>
 #include <unordered_map>
 #include <CanvasPoint.h>
-
-#define planeWidth 200
-#define planeHeight 150
-
+#include <CanvasTriangle.h>
 
 #define WIDTH 320
 #define HEIGHT 240
-
-// void draw(DrawingWindow &window, std::vector<float> &grey)
-// {
-// 	window.clearPixels();
-// 	for (size_t y = 0; y < window.height; y++)
-// 	{
-// 		for (size_t x = 0; x < window.width; x++)
-// 		{
-// 			uint32_t colour = (255 << 24) + (int(grey[x]) << 16) + (int(grey[x]) << 8) + int(grey[x]); // this gets grey scale in task 3
-// 			window.setPixelColour(x, y, colour);
-// 		}
-// 	}
-// }
 
 uint32_t colourToUint32(const Colour &colour)
 {
@@ -41,6 +25,31 @@ uint32_t colourToUint32(const Colour &colour)
 		   (static_cast<uint32_t>(colour.blue));
 }
 
+void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour)
+{
+	float diffX = to.x - from.x;
+	float diffY = to.y - from.y;
+	float numberOfSteps = std::max(abs(diffX), abs(diffY));
+	float xStepSize = diffX / numberOfSteps;
+	float yStepSize = diffY / numberOfSteps;
+
+	for (float i = 0.0; i <= numberOfSteps; i++)
+	{
+		float x = from.x + (xStepSize * i);
+		float y = from.y + (yStepSize * i);
+		window.setPixelColour(round(x), round(y), colourToUint32(colour));
+	}
+}
+
+void drawStroked(DrawingWindow &window, CanvasTriangle t, Colour colour)
+{
+	CanvasPoint a = t[0];
+	CanvasPoint b = t[1];
+	CanvasPoint c = t[2];
+	drawLine(window, a, b, colour);
+	drawLine(window, b, c, colour);
+	drawLine(window, a, c, colour);
+}
 
 
 CanvasPoint projectVertexOntoCanvasPoint(DrawingWindow &window, glm::vec3 cameraPosition, float focalLength, glm::vec3 vertexPostion){
@@ -75,7 +84,6 @@ Colour findColour(std::string name, std::unordered_map<std::string, Colour> pale
 std::vector<ModelTriangle> OBJFileLoader(std::string filename, float scale, std::unordered_map<std::string, Colour> palette){
 	std::vector<glm::vec3> vectorList;
 	std::vector<ModelTriangle> triangles;
-	std::cout << "SEcond test" << std::endl;
 	std::string line;
 	std::ifstream file(filename);
 	if (!file.is_open()) {
@@ -190,39 +198,44 @@ void handleEvent(SDL_Event event, DrawingWindow &window)
 
 void renderPointCloud(DrawingWindow &window, glm::vec3 cameraPosition, float focalLength, std::vector<ModelTriangle> triangles, float imagePlaneScaling){
 	window.clearPixels();
-	float scaleX = window.width / planeWidth;
-    float scaleY = window.height / planeHeight;
+	// float scaleX = window.width / planeWidth;
+    // float scaleY = window.height / planeHeight;
+	float scaleX = window.width / 200;
+    float scaleY = window.height / 150;
 
 	for (ModelTriangle triangle : triangles){
-		for (glm::vec3 vertex : triangle.vertices){
-			CanvasPoint vertexProjected = projectVertexOntoCanvasPoint(window, cameraPosition, focalLength, vertex);
+		
+		CanvasPoint vertexProjA = projectVertexOntoCanvasPoint(window, cameraPosition, focalLength, triangle.vertices[0]);
+		CanvasPoint vertexProjB = projectVertexOntoCanvasPoint(window, cameraPosition, focalLength, triangle.vertices[1]);
+		CanvasPoint vertexProjC = projectVertexOntoCanvasPoint(window, cameraPosition, focalLength, triangle.vertices[2]);
 
-			//float screenX = round(vertexProjected.x * imagePlaneScaling);
-			//float screenY = round(vertexProjected.y * imagePlaneScaling);
+		//float screenX = round(window.width - (vertexProjected.x * scaleX));
+		//upside down when (window.height - vertexProjected.y) * scaleY)
+		//Right side up but mirroed when its (0 + vertexProjected.y)
+		//float screenY = round((vertexProjected.y * scaleY));
+		float screenX1 = round(window.width - (vertexProjA.x * scaleX));
+		float screenY1 = round((vertexProjA.y * scaleY));
 
-			float screenX = round(window.width - (vertexProjected.x * scaleX));
-			//upside down when (window.height - vertexProjected.y) * scaleY)
-			//Right side up but mirroed when its (0 + vertexProjected.y)
-            float screenY = round((vertexProjected.y * scaleY));
+		float screenX2 = round(window.width - (vertexProjB.x * scaleX));
+		float screenY2 = round((vertexProjB.y * scaleY));
 
-			//float screenX = round(window.width/2 + scaledU);
-			//float screenY = round((window.height/2) - scaledV);
+		float screenX3 = round(window.width - (vertexProjC.x * scaleX));
+		float screenY3 = round((vertexProjC.y * scaleY));
 
-			//screenX += window.width / 2;  // Shift horizontally to center
-            //screenY += window.height / 2;
+		CanvasTriangle canvasTriangle(CanvasPoint(screenX1, screenY1), CanvasPoint(screenX2, screenY2), CanvasPoint(screenX3, screenY3));
 
-			std::cout << "screenX: " << screenX << ", screenY: " << screenY << std::endl;
+		//std::cout << "screenX: " << screenX << ", screenY: " << screenY << std::endl;
 
-			Colour white = Colour(255, 255, 255);
+		Colour white = Colour(255, 255, 255);
 
-			if (screenX >= 0 && screenX < window.width && screenY >= 0 && screenY < window.height) {
-				window.setPixelColour(screenX, screenY, colourToUint32(white));
-			} 
-			else{
-				std::cout << "Not setting pixels" << std::endl;
-			}
+		// if (screenX >= 0 && screenX < window.width && screenY >= 0 && screenY < window.height) {
+		// 	window.setPixelColour(screenX, screenY, colourToUint32(white));
+		// } 
+		// else{
+		// 	std::cout << "Not setting pixels" << std::endl;
+		// }
 
-		}
+		drawStroked(window, canvasTriangle, white);
 	}
 
 }
