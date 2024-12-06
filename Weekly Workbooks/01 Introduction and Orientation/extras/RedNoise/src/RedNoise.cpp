@@ -41,6 +41,38 @@ void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour co
 	}
 }
 
+std::vector<CanvasPoint> drawLineArray(CanvasPoint from, CanvasPoint to, Colour colour)
+{
+	std::vector<CanvasPoint> pointsToDraw;
+	float diffX = to.x - from.x;
+	float diffY = to.y - from.y;
+	float numberOfSteps = std::max(abs(diffX), abs(diffY));
+	float xStepSize = diffX / numberOfSteps;
+	float yStepSize = diffY / numberOfSteps;
+
+	for (float i = 0.0; i <= numberOfSteps; i++)
+	{
+		float x = from.x + (xStepSize * i);
+		float y = from.y + (yStepSize * i);
+		CanvasPoint point = CanvasPoint(round(x),round(y));
+		pointsToDraw.push_back(point);
+		//window.setPixelColour(round(x), round(y), colourToUint32(colour));
+	}
+	return pointsToDraw;
+}
+
+
+float interpolationX(CanvasPoint from, CanvasPoint to, float currentY)
+{
+	float diffX = to.x - from.x;
+	float diffY = to.y - from.y;
+	float changeY = (currentY - from.y)/(diffY);
+	float currentX = from.x + (diffX * changeY);
+	return currentX;
+}
+
+
+
 void drawStroked(DrawingWindow &window, CanvasTriangle t, Colour colour)
 {
 	CanvasPoint a = t[0];
@@ -49,6 +81,69 @@ void drawStroked(DrawingWindow &window, CanvasTriangle t, Colour colour)
 	drawLine(window, a, b, colour);
 	drawLine(window, b, c, colour);
 	drawLine(window, a, c, colour);
+}
+
+void drawFilled(DrawingWindow &window, CanvasTriangle t, Colour colour)
+{
+	// sort the cavaspoints by the y value (loweest top, highest bottom)
+	for (int i = 0; i < 2; i++)
+	{
+		for (int j = 0; j < 2 - i; j++)
+		{
+			if (CanvasPoint(t[j]).y > CanvasPoint(t[j + 1]).y)
+			{
+				CanvasPoint temp = t[j];
+				t[j] = t[j + 1];
+				t[j+1] = temp;
+			}
+		}
+	}
+	CanvasPoint a = t[0]; // lower y near the top
+	CanvasPoint b = t[1];
+	CanvasPoint c = t[2]; // highest y at the bottom
+
+	//find extra point
+	CanvasPoint extra;
+	std::vector<CanvasPoint> a2c = drawLineArray(a, c, colour);
+	for (const auto point : a2c) {
+        if (point.y == b.y) {
+            extra = point;
+			break;
+        }
+    }
+	//Fill top triangle
+	for (float y = a.y; y < b.y; y++){
+		float x1 = interpolationX(a, extra, y);
+		float x2 = interpolationX(a, b, y);
+	
+		if(x1 > x2){
+			for (float x = round(x2); x <= round(x1); x++){
+				window.setPixelColour(round(x), round(y), colourToUint32(colour));
+				
+			}
+		}
+		if(x2 >= x1){
+			for (float x = round(x1); x <= round(x2); x++){
+				window.setPixelColour(round(x), round(y), colourToUint32(colour));
+			}
+		}
+	}
+	//fill bottom triangle
+	for (float y = b.y; y < c.y; y++){
+		float x1 = interpolationX(extra, c, y);
+		float x2 = interpolationX(b, c, y);
+	
+		if(x1 > x2){
+			for (float x = round(x2); x <= round(x1); x++){
+				window.setPixelColour(round(x), round(y), colourToUint32(colour));	
+			}
+		}
+		if(x2 >= x1){
+			for (float x = round(x1); x <= round(x2); x++){
+				window.setPixelColour(round(x), round(y), colourToUint32(colour));
+			}
+		}
+	}
 }
 
 
@@ -101,6 +196,7 @@ std::vector<ModelTriangle> OBJFileLoader(std::string filename, float scale, std:
 			std::string type = "usemtl";  
 			std::string colourType;
 			iss >> type >> colourType;
+
 			
 			triColour = findColour(colourType, palette);
 		}
@@ -125,7 +221,7 @@ std::vector<ModelTriangle> OBJFileLoader(std::string filename, float scale, std:
 			iss.ignore(2); // Ignore 'f ' prefix
             iss >> ind1 >> slash >> ind2 >> slash >> ind3;
 
-			Colour triangleColour = triColour;//red as defukt
+			Colour triangleColour = triColour;
 
 			glm::vec3 v1 = vectorList[ind1 - 1];
 			glm::vec3 v2 = vectorList[ind2 - 1];
@@ -166,7 +262,7 @@ std::unordered_map<std::string, Colour> materialFileLoader(std::string filename)
 			
 			iss>>type>>r>>g>>b;
 			
-			Colour newColour = Colour(r, g, b);
+			Colour newColour = Colour((r*255), (g*255), (b*255));
 			palette[newMaterialName] = newColour;
 			std::string newMaterialName;
 		}
@@ -208,7 +304,8 @@ void renderPointCloud(DrawingWindow &window, glm::vec3 cameraPosition, float foc
 		CanvasPoint vertexProjA = projectVertexOntoCanvasPoint(window, cameraPosition, focalLength, triangle.vertices[0]);
 		CanvasPoint vertexProjB = projectVertexOntoCanvasPoint(window, cameraPosition, focalLength, triangle.vertices[1]);
 		CanvasPoint vertexProjC = projectVertexOntoCanvasPoint(window, cameraPosition, focalLength, triangle.vertices[2]);
-
+		Colour filledColour = triangle.colour;
+		// std::cout << "FilledColour" << filledColour << std::endl;
 		//float screenX = round(window.width - (vertexProjected.x * scaleX));
 		//upside down when (window.height - vertexProjected.y) * scaleY)
 		//Right side up but mirroed when its (0 + vertexProjected.y)
@@ -224,9 +321,10 @@ void renderPointCloud(DrawingWindow &window, glm::vec3 cameraPosition, float foc
 
 		CanvasTriangle canvasTriangle(CanvasPoint(screenX1, screenY1), CanvasPoint(screenX2, screenY2), CanvasPoint(screenX3, screenY3));
 
+		//Colo
 		//std::cout << "screenX: " << screenX << ", screenY: " << screenY << std::endl;
 
-		Colour white = Colour(255, 255, 255);
+		//Colour white = Colour(255, 255, 255);
 
 		// if (screenX >= 0 && screenX < window.width && screenY >= 0 && screenY < window.height) {
 		// 	window.setPixelColour(screenX, screenY, colourToUint32(white));
@@ -235,7 +333,8 @@ void renderPointCloud(DrawingWindow &window, glm::vec3 cameraPosition, float foc
 		// 	std::cout << "Not setting pixels" << std::endl;
 		// }
 
-		drawStroked(window, canvasTriangle, white);
+		//drawStroked(window, canvasTriangle, white);
+		drawFilled(window, canvasTriangle, filledColour);
 	}
 
 }
